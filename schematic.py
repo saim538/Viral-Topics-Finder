@@ -227,8 +227,9 @@ import requests
 from datetime import datetime, timedelta
 
 # YouTube API Key
-API_KEY = "YOUR_YOUTUBE_API_KEY"
+API_KEY = "AIzaSyDmAp27l_1iZ2YVYZPxmvpnc5p_AcBN8rc"
 
+# API URLs
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
@@ -236,120 +237,56 @@ YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 # Streamlit App Title
 st.title("🔥 YouTube Viral Topics Finder")
 
-# Date Range Selection
-date_options = {
-    "Last 7 Days": 7,
-    "Last 15 Days": 15,
-    "Last 30 Days": 30,
-    "Last 2 Months": 60,
-    "Last 3 Months": 90,
-    "Last 6 Months": 180,
-    "Last 1 Year": 365,
-    "Last 2 Years": 730
+# Selection for Date Range
+date_ranges = {
+    "Last 7 days": 7,
+    "Last 15 days": 15,
+    "Last 30 days": 30,
+    "Last 2 months": 60,
+    "Last 3 months": 90,
+    "Last 6 months": 180,
+    "Last 1 year": 365,
+    "Last 2 years": 730
 }
-selected_range = st.selectbox("Select Date Range:", list(date_options.keys()))
+selected_range = st.selectbox("Select Time Range:", list(date_ranges.keys()))
 
 # User Inputs
-keywords_input = st.text_area("Enter Keywords (comma-separated):", "")
-subscriber_limit = st.number_input("Enter Max Subscriber Count to Filter:", min_value=1, value=5000)
+keywords_input = st.text_area("Enter Keywords (comma-separated):", "trending, viral")
+subscriber_limit = st.number_input("Filter by Max Subscribers (e.g., 1000000 for 1M subs)", min_value=1, value=5000000)
 
 # Convert keywords into a list
 keywords = [k.strip() for k in keywords_input.split(",") if k.strip()]
 
-# Function to format numbers like YouTube (1K, 1M, etc.)
-def format_number(value):
-    if value >= 1_000_000_000:
-        return f"{value / 1_000_000_000:.1f}B"
-    elif value >= 1_000_000:
-        return f"{value / 1_000_000:.1f}M"
-    elif value >= 1_000:
-        return f"{value / 1_000:.1f}K"
-    return str(value)
-
 # Fetch Data Button
-if st.button("🔍 Find Viral Videos"):
+if st.button("Fetch Data"):
     if not keywords:
         st.warning("⚠️ Please enter at least one keyword.")
     else:
         try:
-            # Calculate start date
-            days = date_options[selected_range]
-            start_date = (datetime.utcnow() - timedelta(days=days)).isoformat("T") + "Z"
+            # Calculate date range
+            start_date = (datetime.utcnow() - timedelta(days=date_ranges[selected_range])).isoformat("T") + "Z"
             all_results = []
 
             for keyword in keywords:
-                st.write(f"🔎 Searching for keyword: **{keyword}**")
+                st.write(f"🔍 Searching for keyword: **{keyword}**")
 
+                # Search videos
                 search_params = {
                     "part": "snippet",
                     "q": keyword,
                     "type": "video",
                     "order": "viewCount",
                     "publishedAfter": start_date,
-                    "maxResults": 5,
+                    "maxResults": 10,
                     "key": API_KEY,
                 }
-
                 response = requests.get(YOUTUBE_SEARCH_URL, params=search_params)
                 data = response.json()
 
                 if "items" not in data or not data["items"]:
-                    st.warning(f"⚠️ No videos found for keyword: {keyword}")
+                    st.warning(f"⚠️ No videos found for: {keyword}")
                     continue
 
-                videos = data["items"]
-                video_ids = [video["id"]["videoId"] for video in videos]
-                channel_ids = [video["snippet"]["channelId"] for video in videos]
-
-                # Fetch video statistics
-                stats_params = {"part": "statistics", "id": ",".join(video_ids), "key": API_KEY}
-                stats_response = requests.get(YOUTUBE_VIDEO_URL, params=stats_params)
-                stats_data = stats_response.json()
-
-                # Fetch channel statistics
-                channel_params = {"part": "statistics", "id": ",".join(channel_ids), "key": API_KEY}
-                channel_response = requests.get(YOUTUBE_CHANNEL_URL, params=channel_params)
-                channel_data = channel_response.json()
-
-                stats = stats_data.get("items", [])
-                channels = channel_data.get("items", [])
-
-                for video, stat, channel in zip(videos, stats, channels):
-                    title = video["snippet"].get("title", "N/A")
-                    description = video["snippet"].get("description", "")[:200]
-                    video_id = video["id"]["videoId"]
-                    video_url = f"https://www.youtube.com/watch?v={video_id}"
-                    views = int(stat["statistics"].get("viewCount", 0))
-                    subs = int(channel["statistics"].get("subscriberCount", 0))
-
-                    if subs < subscriber_limit:
-                        all_results.append({
-                            "Title": title,
-                            "Description": description,
-                            "Video ID": video_id,
-                            "URL": video_url,
-                            "Views": format_number(views),
-                            "Subscribers": format_number(subs)
-                        })
-
-            if all_results:
-                st.success(f"✅ Found {len(all_results)} viral videos!")
-
-                for result in all_results:
-                    st.subheader(f"🎬 {result['Title']}")
-                    st.video(result["URL"])
-                    st.markdown(
-                        f"**📌 Description:** {result['Description']}  \n"
-                        f"**👁 Views:** {result['Views']}  \n"
-                        f"**📢 Subscribers:** {result['Subscribers']}  \n"
-                        f"🔗 [Watch on YouTube]({result['URL']})"
-                    )
-                    st.write("---")
-
-            else:
-                st.warning(f"⚠️ No viral videos found within the selected range.")
-
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
+                video_ids = [video["id"]["videoId"] for video in data["items"]
 
 
