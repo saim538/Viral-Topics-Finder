@@ -226,7 +226,7 @@ import streamlit as st
 import requests
 from datetime import datetime, timedelta
 
-# YouTube API Key
+# YouTube API Key (Your API key)
 API_KEY = "AIzaSyDmAp27l_1iZ2YVYZPxmvpnc5p_AcBN8rc"
 
 # API URLs
@@ -234,10 +234,11 @@ YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
-# Streamlit App Title
-st.title("🔥 YouTube Viral Topics Finder")
+# Streamlit UI
+st.set_page_config(layout="wide")  # Set layout to wide for responsiveness
+st.title("🔥 YouTube Trending Video Finder")
 
-# Selection for Date Range
+# Date Range Selection
 date_ranges = {
     "Last 7 days": 7,
     "Last 15 days": 15,
@@ -256,6 +257,15 @@ subscriber_limit = st.number_input("Filter by Max Subscribers (e.g., 1000000 for
 
 # Convert keywords into a list
 keywords = [k.strip() for k in keywords_input.split(",") if k.strip()]
+
+# Function to format numbers (YouTube-style)
+def format_number(num):
+    num = int(num)
+    if num >= 1_000_000:
+        return f"{num / 1_000_000:.1f}M"
+    elif num >= 1_000:
+        return f"{num / 1_000:.1f}K"
+    return str(num)
 
 # Fetch Data Button
 if st.button("Fetch Data"):
@@ -277,7 +287,7 @@ if st.button("Fetch Data"):
                     "type": "video",
                     "order": "viewCount",
                     "publishedAfter": start_date,
-                    "maxResults": 10,
+                    "maxResults": 16,  # Fetch more results for grid
                     "key": API_KEY,
                 }
                 response = requests.get(YOUTUBE_SEARCH_URL, params=search_params)
@@ -312,37 +322,34 @@ if st.button("Fetch Data"):
 
                     if subs < subscriber_limit:
                         views = int(stat["statistics"].get("viewCount", 0))
-                        formatted_views = f"{views:,}".replace(",", " ")  # Format views
-                        formatted_subs = f"{subs:,}".replace(",", " ")  # Format subscribers
 
                         all_results.append({
                             "Title": video["snippet"]["title"],
-                            "Description": video["snippet"]["description"][:200],
+                            "Description": video["snippet"]["description"][:100],  # Short description
                             "Video ID": video["id"]["videoId"],
                             "URL": f"https://www.youtube.com/watch?v={video['id']['videoId']}",
-                            "Views": formatted_views,
-                            "Subscribers": formatted_subs
+                            "Views": format_number(views),
+                            "Subscribers": format_number(subs),
+                            "Thumbnail": video["snippet"]["thumbnails"]["medium"]["url"]
                         })
 
-            # Display results
+            # Display results in a grid (4 per row)
             if all_results:
                 st.success(f"✅ Found {len(all_results)} trending videos!")
-
-                for result in all_results:
-                    st.subheader(f"🎬 {result['Title']}")
-                    st.video(result["URL"])
-                    st.markdown(
-                        f"**📌 Description:** {result['Description']}  \n"
-                        f"**👁 Views:** {result['Views']}  \n"
-                        f"**📢 Subscribers:** {result['Subscribers']}  \n"
-                        f"🔗 [Watch on YouTube]({result['URL']})"
-                    )
-                    st.write("---")
+                cols = st.columns(4)  # Create 4 columns per row
+                
+                for index, result in enumerate(all_results):
+                    with cols[index % 4]:  # Arrange videos in 4-column grid
+                        st.image(result["Thumbnail"], width=300)
+                        st.markdown(f"**[{result['Title']}]({result['URL']})**", unsafe_allow_html=True)
+                        st.markdown(f"👁 **Views:** {result['Views']} &nbsp; 📢 **Subscribers:** {result['Subscribers']}")
+                        st.write("---")
 
             else:
                 st.warning(f"⚠️ No results found for channels with fewer than {subscriber_limit} subscribers.")
 
         except Exception as e:
             st.error(f"❌ Error: {e}")
+
 
 
