@@ -161,7 +161,7 @@ if st.button("Fetch Data"):
                 subs = int(channel["statistics"].get("subscriberCount", 0))
 
 
-                if subs < 5000:  # Only include channels with fewer than 3,000 subscribers
+                if subs < 20000:  # Only include channels with fewer than 3,000 subscribers
 
                     all_results.append({
 
