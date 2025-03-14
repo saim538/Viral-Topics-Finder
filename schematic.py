@@ -282,7 +282,7 @@ def fetch_videos(page_token=None):
     params = {
         "part": "snippet",
         "q": query,
-        "maxResults": 12,
+        "maxResults": 50,
         "type": "video",
         "order": "viewCount",
         "publishedAfter": published_after,
@@ -339,8 +339,8 @@ if st.session_state.videos:
             st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
             st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
     
-    # Load More Button (Only after 100 videos)
-    if st.session_state.nextPageToken and st.session_state.video_count < 100:
+    # Load More Button (First after 200 videos, then in batches of 200)
+    if st.session_state.nextPageToken and st.session_state.video_count >= 200:
         if st.button("Load More"):
             response = fetch_videos(st.session_state.nextPageToken)
             st.session_state.videos.extend(response.get("items", []))
@@ -349,4 +349,3 @@ if st.session_state.videos:
             
             if not response.get("items", []):
                 st.write("❌ No more results found.")
-
