@@ -221,7 +221,6 @@
 
 
 
-
 import streamlit as st
 import requests
 from datetime import datetime, timedelta
@@ -283,6 +282,9 @@ if "video_count" not in st.session_state:
 
 # Function to fetch videos
 def fetch_videos(page_token=None):
+    if not query.strip():
+        return {"items": []}  # Prevent empty query error
+    
     params = {
         "part": "snippet",
         "q": query,
@@ -315,7 +317,7 @@ if st.button("Search"):
     st.session_state.video_count += len(response.get("items", []))
     
     if not st.session_state.videos:
-        st.write("❌ No results found.")
+        st.write("❌ No results found. Try adjusting filters or searching with a different keyword.")
 
 # Display results
 if st.session_state.videos:
@@ -325,7 +327,7 @@ if st.session_state.videos:
         display: flex;
         flex-wrap: wrap;
         gap: 20px;
-        justify-content: space-between;
+        justify-content: flex-start;
         width: 100%;
     }
     .video-card {
@@ -357,27 +359,10 @@ if st.session_state.videos:
         title = snippet["title"]
         thumbnail = snippet["thumbnails"]["medium"]["url"]
         
-        # Get video details
-        video_details_url = f"{YOUTUBE_VIDEO_URL}?part=statistics,snippet&id={vid}&key={API_KEY}"
-        video_response = requests.get(video_details_url).json()
-        stats = video_response.get("items", [{}])[0].get("statistics", {})
-        views = format_count(int(stats.get("viewCount", 0)))
-        
-        # Get channel details
-        channel_id = snippet["channelId"]
-        channel_url = f"{YOUTUBE_CHANNEL_URL}?part=statistics&id={channel_id}&key={API_KEY}"
-        channel_response = requests.get(channel_url).json()
-        subscribers = format_count(int(channel_response.get("items", [{}])[0].get("statistics", {}).get("subscriberCount", 0)))
-        
-        # Filter by Max Subscribers
-        if max_subscribers > 0 and int(channel_response.get("items", [{}])[0].get("statistics", {}).get("subscriberCount", 0)) > max_subscribers:
-            continue
-        
         st.markdown(f"""
         <div class='video-card'>
             <a href='https://www.youtube.com/watch?v={vid}' target='_blank'><img src='{thumbnail}'></a>
             <p class='video-title'>{title}</p>
-            <p>👁️ {views} views | 📢 {subscribers} subscribers</p>
         </div>
         """, unsafe_allow_html=True)
     
