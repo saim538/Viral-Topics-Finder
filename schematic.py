@@ -309,8 +309,7 @@ if st.button("Search"):
 
 # Display results
 if st.session_state.videos:
-    col1, col2, col3, col4 = st.columns(4)
-    cols = [col1, col2, col3, col4]
+    cols = st.columns(4)
     
     for idx, item in enumerate(st.session_state.videos):
         vid = item["id"]["videoId"]
@@ -335,9 +334,11 @@ if st.session_state.videos:
             continue
         
         with cols[idx % 4]:
-            st.image(thumbnail, use_container_width=True)
-            st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
-            st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
+            with st.container():
+                st.image(thumbnail, use_container_width=True)
+                st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
+                st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
+                st.markdown("---")
     
     # Load More Button (First after 200 videos, then in batches of 200)
     if st.session_state.nextPageToken and st.session_state.video_count >= 200:
