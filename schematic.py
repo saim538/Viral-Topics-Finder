@@ -274,6 +274,8 @@ if "nextPageToken" not in st.session_state:
     st.session_state.nextPageToken = None
 if "videos" not in st.session_state:
     st.session_state.videos = []
+if "video_count" not in st.session_state:
+    st.session_state.video_count = 0
 
 # Function to fetch videos
 def fetch_videos(page_token=None):
@@ -296,9 +298,11 @@ def fetch_videos(page_token=None):
 if st.button("Search"):
     st.session_state.videos = []  # Reset results
     st.session_state.nextPageToken = None  # Reset pagination
+    st.session_state.video_count = 0  # Reset video count
     response = fetch_videos()
     st.session_state.videos.extend(response.get("items", []))
     st.session_state.nextPageToken = response.get("nextPageToken", None)
+    st.session_state.video_count += len(response.get("items", []))
     
     if not st.session_state.videos:
         st.write("❌ No results found.")
@@ -314,16 +318,34 @@ if st.session_state.videos:
         title = snippet["title"]
         thumbnail = snippet["thumbnails"]["medium"]["url"]
         
+        # Get video details
+        video_details_url = f"{YOUTUBE_VIDEO_URL}?part=statistics,snippet&id={vid}&key={API_KEY}"
+        video_response = requests.get(video_details_url).json()
+        stats = video_response.get("items", [{}])[0].get("statistics", {})
+        views = format_count(int(stats.get("viewCount", 0)))
+        
+        # Get channel details
+        channel_id = snippet["channelId"]
+        channel_url = f"{YOUTUBE_CHANNEL_URL}?part=statistics&id={channel_id}&key={API_KEY}"
+        channel_response = requests.get(channel_url).json()
+        subscribers = format_count(int(channel_response.get("items", [{}])[0].get("statistics", {}).get("subscriberCount", 0)))
+        
+        # Filter by Max Subscribers
+        if max_subscribers > 0 and int(channel_response.get("items", [{}])[0].get("statistics", {}).get("subscriberCount", 0)) > max_subscribers:
+            continue
+        
         with cols[idx % 4]:
             st.image(thumbnail, use_container_width=True)
             st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
+            st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
     
-    # Load More Button
-    if st.session_state.nextPageToken:
+    # Load More Button (Only after 100 videos)
+    if st.session_state.nextPageToken and st.session_state.video_count < 100:
         if st.button("Load More"):
             response = fetch_videos(st.session_state.nextPageToken)
             st.session_state.videos.extend(response.get("items", []))
             st.session_state.nextPageToken = response.get("nextPageToken", None)
+            st.session_state.video_count += len(response.get("items", []))
             
             if not response.get("items", []):
                 st.write("❌ No more results found.")
