@@ -246,6 +246,7 @@ def format_count(number):
         return str(number)
 
 # Streamlit UI
+st.set_page_config(layout="wide")
 st.title("🔍 YouTube Video Search")
 
 # Search Bar
@@ -318,9 +319,9 @@ if st.button("Search"):
 
 # Display results
 if st.session_state.videos:
-    cols = st.columns(4)
+    st.markdown("<div style='display: flex; flex-wrap: wrap; gap: 20px;'>", unsafe_allow_html=True)
     
-    for idx, item in enumerate(st.session_state.videos):
+    for item in st.session_state.videos:
         vid = item["id"]["videoId"]
         snippet = item["snippet"]
         title = snippet["title"]
@@ -342,14 +343,15 @@ if st.session_state.videos:
         if max_subscribers > 0 and int(channel_response.get("items", [{}])[0].get("statistics", {}).get("subscriberCount", 0)) > max_subscribers:
             continue
         
-        with cols[idx % 4]:
-            with st.container():
-                st.markdown("<div style='border: 1px solid #ddd; border-radius: 10px; padding: 10px; text-align: center;'>", unsafe_allow_html=True)
-                st.image(thumbnail, use_container_width=True)
-                st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
-                st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
-                st.markdown("</div>", unsafe_allow_html=True)
-                st.markdown("---")
+        st.markdown(f"""
+        <div style='width: 23%; border: 1px solid #ddd; border-radius: 10px; padding: 10px; text-align: center; background: #f9f9f9;'>
+            <img src='{thumbnail}' style='width: 100%; border-radius: 10px;'>
+            <p><b><a href='https://www.youtube.com/watch?v={vid}' target='_blank'>{title}</a></b></p>
+            <p>👁️ {views} views | 📢 {subscribers} subscribers</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
     
     # Load More Button (First after 200 videos, then in batches of 200)
     if st.session_state.nextPageToken and st.session_state.video_count >= 200:
