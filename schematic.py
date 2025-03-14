@@ -266,6 +266,9 @@ selected_range = st.selectbox("Filter by Date:", list(date_options.keys()))
 # Max Subscribers Input
 max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, step=1000, value=0)
 
+# Video Length Filter
+video_length_filter = st.radio("Filter by Video Length:", ("All", "Shorts (<60s)", "Long (>=60s)"))
+
 # Calculate Date Range
 published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
 
@@ -287,9 +290,15 @@ def fetch_videos(page_token=None):
         "order": "viewCount",
         "publishedAfter": published_after,
         "key": API_KEY,
+        "videoDuration": "any",
     }
     if page_token:
         params["pageToken"] = page_token
+    
+    if video_length_filter == "Shorts (<60s)":
+        params["videoDuration"] = "short"
+    elif video_length_filter == "Long (>=60s)":
+        params["videoDuration"] = "long"
     
     response = requests.get(YOUTUBE_SEARCH_URL, params=params).json()
     return response
@@ -335,9 +344,11 @@ if st.session_state.videos:
         
         with cols[idx % 4]:
             with st.container():
+                st.markdown("<div style='border: 1px solid #ddd; border-radius: 10px; padding: 10px; text-align: center;'>", unsafe_allow_html=True)
                 st.image(thumbnail, use_container_width=True)
                 st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
                 st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
+                st.markdown("</div>", unsafe_allow_html=True)
                 st.markdown("---")
     
     # Load More Button (First after 200 videos, then in batches of 200)
