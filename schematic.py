@@ -269,8 +269,14 @@ max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, st
 # Calculate Date Range
 published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
 
-# Search YouTube API
-if st.button("Search"):
+# Session state for pagination
+if "nextPageToken" not in st.session_state:
+    st.session_state.nextPageToken = None
+if "videos" not in st.session_state:
+    st.session_state.videos = []
+
+# Function to fetch videos
+def fetch_videos(page_token=None):
     params = {
         "part": "snippet",
         "q": query,
@@ -280,43 +286,45 @@ if st.button("Search"):
         "publishedAfter": published_after,
         "key": API_KEY,
     }
-    response = requests.get(YOUTUBE_SEARCH_URL, params=params)
-    data = response.json()
+    if page_token:
+        params["pageToken"] = page_token
+    
+    response = requests.get(YOUTUBE_SEARCH_URL, params=params).json()
+    return response
 
-    if "items" in data:
-        video_ids = [item["id"]["videoId"] for item in data["items"]]
-        video_details_url = f"{YOUTUBE_VIDEO_URL}?part=statistics,snippet&id={','.join(video_ids)}&key={API_KEY}"
-        video_response = requests.get(video_details_url).json()
-
-        # Display Results in Grid (4 Videos Per Row)
-        col1, col2, col3, col4 = st.columns(4)
-        cols = [col1, col2, col3, col4]
-
-        for idx, video in enumerate(video_response.get("items", [])):
-            vid = video["id"]
-            snippet = video["snippet"]
-            stats = video["statistics"]
-            title = snippet["title"]
-            thumbnail = snippet["thumbnails"]["medium"]["url"]
-            views = format_count(int(stats.get("viewCount", 0)))
-
-            # Get Channel Details
-            channel_id = snippet["channelId"]
-            channel_url = f"{YOUTUBE_CHANNEL_URL}?part=statistics&id={channel_id}&key={API_KEY}"
-            channel_response = requests.get(channel_url).json()
-            subscribers = format_count(int(channel_response["items"][0]["statistics"]["subscriberCount"]))
-
-            # Filter by Max Subscribers
-            if max_subscribers > 0 and int(channel_response["items"][0]["statistics"]["subscriberCount"]) > max_subscribers:
-                continue  # Skip if channel has more subscribers than the filter
-
-            # Display Video
-            with cols[idx % 4]:
-                st.image(thumbnail, use_container_width=True)  # ✅ FIXED THE WARNING HERE
-                st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
-                st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
-
-    else:
+# Search YouTube API
+if st.button("Search"):
+    st.session_state.videos = []  # Reset results
+    st.session_state.nextPageToken = None  # Reset pagination
+    response = fetch_videos()
+    st.session_state.videos.extend(response.get("items", []))
+    st.session_state.nextPageToken = response.get("nextPageToken", None)
+    
+    if not st.session_state.videos:
         st.write("❌ No results found.")
 
+# Display results
+if st.session_state.videos:
+    col1, col2, col3, col4 = st.columns(4)
+    cols = [col1, col2, col3, col4]
+    
+    for idx, item in enumerate(st.session_state.videos):
+        vid = item["id"]["videoId"]
+        snippet = item["snippet"]
+        title = snippet["title"]
+        thumbnail = snippet["thumbnails"]["medium"]["url"]
+        
+        with cols[idx % 4]:
+            st.image(thumbnail, use_container_width=True)
+            st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
+    
+    # Load More Button
+    if st.session_state.nextPageToken:
+        if st.button("Load More"):
+            response = fetch_videos(st.session_state.nextPageToken)
+            st.session_state.videos.extend(response.get("items", []))
+            st.session_state.nextPageToken = response.get("nextPageToken", None)
+            
+            if not response.get("items", []):
+                st.write("❌ No more results found.")
 
