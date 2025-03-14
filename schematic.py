@@ -30,7 +30,11 @@ days = st.number_input("Enter Days to Search (1-30):", min_value=1, max_value=30
 
 keywords = [
 
-  "fitness", "health"
+  "health and wellness",
+    "fitness tips",
+    "best exercises for weight loss",
+    "home workout routines",
+    "gym workout plan"
 ]
 
 
@@ -157,7 +161,7 @@ if st.button("Fetch Data"):
                 subs = int(channel["statistics"].get("subscriberCount", 0))
 
 
-                if subs < 3000:  # Only include channels with fewer than 3,000 subscribers
+                if subs < 10000:  # Only include channels with fewer than 3,000 subscribers
 
                     all_results.append({
 
