@@ -258,6 +258,9 @@ keywords = [kw.strip() for kw in keywords_input.split(",") if kw.strip()]
 min_views = st.number_input("Enter Minimum Views:", min_value=0, value=0)
 max_views = st.number_input("Enter Maximum Views:", min_value=0, value=1000000)
 
+min_subscribers = st.number_input("Enter Minimum Channel Subscribers:", min_value=0, value=0)
+max_subscribers = st.number_input("Enter Maximum Channel Subscribers:", min_value=0, value=100000000)
+
 # Fetch Data Button
 if st.button("Fetch Data"):
     try:
@@ -317,7 +320,7 @@ if st.button("Fetch Data"):
                 views = int(stat["statistics"].get("viewCount", 0))
                 subs = int(channel["statistics"].get("subscriberCount", 0))
                 
-                if min_views <= views <= max_views:
+                if min_views <= views <= max_views and min_subscribers <= subs <= max_subscribers:
                     all_results.append({
                         "Title": title,
                         "Description": description,
