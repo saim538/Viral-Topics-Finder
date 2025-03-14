@@ -319,7 +319,37 @@ if st.button("Search"):
 
 # Display results
 if st.session_state.videos:
-    st.markdown("<div style='display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; width: 100%;'>", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    .video-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: space-between;
+        width: 100%;
+    }
+    .video-card {
+        width: 23%;
+        min-height: 300px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        background: #f9f9f9;
+    }
+    .video-card img {
+        width: 100%;
+        border-radius: 10px;
+    }
+    .video-title {
+        color: black;
+        margin: 10px 0;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    </style>
+    <div class='video-container'>
+    """, unsafe_allow_html=True)
     
     for item in st.session_state.videos:
         vid = item["id"]["videoId"]
@@ -344,16 +374,16 @@ if st.session_state.videos:
             continue
         
         st.markdown(f"""
-        <div style='width: 23%; min-height: 300px; border: 1px solid #ddd; border-radius: 10px; padding: 10px; text-align: center; background: #f9f9f9;'>
-            <a href='https://www.youtube.com/watch?v={vid}' target='_blank'><img src='{thumbnail}' style='width: 100%; border-radius: 10px;'></a>
-            <p style='color: black; margin: 10px 0; font-weight: bold;'>{title}</p>
+        <div class='video-card'>
+            <a href='https://www.youtube.com/watch?v={vid}' target='_blank'><img src='{thumbnail}'></a>
+            <p class='video-title'>{title}</p>
             <p>👁️ {views} views | 📢 {subscribers} subscribers</p>
         </div>
         """, unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # Load More Button (First after 200 videos, then in batches of 200)
+    # Load More Button
     if st.session_state.nextPageToken and st.session_state.video_count >= 200:
         if st.button("Load More"):
             response = fetch_videos(st.session_state.nextPageToken)
