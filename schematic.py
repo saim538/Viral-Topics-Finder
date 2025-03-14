@@ -30,13 +30,7 @@ days = st.number_input("Enter Days to Search (1-30):", min_value=1, max_value=30
 
 keywords = [
 
- "SaaS Billing", "SaaS Pricing", "SaaS Subscription Management", "Pricing Strategy for SaaS", 
-  "SaaS Monetization", "B2B SaaS Pricing", "Automated Billing System", "Automated SaaS Billing System", 
-  "Best Billing Software for SaaS", "B2B SaaS Billing", "SaaS Billing System", "SaaS Invoicing", 
-  "B2B SaaS Payments", "SaaS Billing Software", "SaaS Billing Models", "SaaS Billing Platforms", 
-  "SaaS Subscription Billing", "Best SaaS Billing Software", "SaaS Pricing Strategy", 
-  "Software as a Service Pricing Models", "SaaS"
-
+  "fitness", "health"
 ]
 
 
