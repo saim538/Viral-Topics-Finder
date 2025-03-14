@@ -319,7 +319,7 @@ if st.button("Search"):
 
 # Display results
 if st.session_state.videos:
-    st.markdown("<div style='display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;'>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; width: 100%;'>", unsafe_allow_html=True)
     
     for item in st.session_state.videos:
         vid = item["id"]["videoId"]
@@ -346,7 +346,7 @@ if st.session_state.videos:
         st.markdown(f"""
         <div style='width: 23%; min-height: 300px; border: 1px solid #ddd; border-radius: 10px; padding: 10px; text-align: center; background: #f9f9f9;'>
             <a href='https://www.youtube.com/watch?v={vid}' target='_blank'><img src='{thumbnail}' style='width: 100%; border-radius: 10px;'></a>
-            <p style='color: black; margin: 10px 0;'><b>{title}</b></p>
+            <p style='color: black; margin: 10px 0; font-weight: bold;'>{title}</p>
             <p>👁️ {views} views | 📢 {subscribers} subscribers</p>
         </div>
         """, unsafe_allow_html=True)
