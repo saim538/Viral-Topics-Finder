@@ -234,7 +234,7 @@ YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
-# Function to convert numbers to K/M/B format
+# Function to format numbers in K/M/B
 def format_count(number):
     if number >= 1_000_000_000:
         return f"{number / 1_000_000_000:.1f}B"
@@ -312,7 +312,7 @@ if st.button("Search"):
 
             # Display Video
             with cols[idx % 4]:
-                st.image(thumbnail, use_column_width=True)
+                st.image(thumbnail, use_container_width=True)  # ✅ FIXED THE WARNING HERE
                 st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
                 st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
 
