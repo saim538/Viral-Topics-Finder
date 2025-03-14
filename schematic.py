@@ -236,24 +236,11 @@ YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
 # Streamlit UI
 st.set_page_config(layout="wide")  # Set layout to wide for responsiveness
-st.title("YouTube Trending Video Finder")
-
-# Date Range Selection
-date_ranges = {
-    "Last 7 days": 7,
-    "Last 15 days": 15,
-    "Last 30 days": 30,
-    "Last 2 months": 60,
-    "Last 3 months": 90,
-    "Last 6 months": 180,
-    "Last 1 year": 365,
-    "Last 2 years": 730
-}
-selected_range = st.selectbox("Select Time Range:", list(date_ranges.keys()))
+st.title("🔥 YouTube Trending Video Finder")
 
 # User Inputs
-keywords_input = st.text_area("Enter Keywords (comma-separated):", "")  # No default keywords
-max_subscribers = st.text_input("Enter Max Subscribers:", "1000000")  # Default 1M, user can enter custom value
+keywords_input = st.text_area("Enter Keywords (comma-separated):", "")  
+max_subscribers = st.text_input("Enter Max Subscribers:", "1000000")  
 
 # Convert keywords into a list
 keywords = [k.strip() for k in keywords_input.split(",") if k.strip()]
@@ -273,23 +260,21 @@ if st.button("Fetch Data"):
         st.warning("⚠️ Please enter at least one keyword.")
     else:
         try:
-            max_subs = int(max_subscribers)  # Convert input to integer
+            max_subs = int(max_subscribers)  
 
-            # Calculate date range
-            start_date = (datetime.utcnow() - timedelta(days=date_ranges[selected_range])).isoformat("T") + "Z"
+            start_date = (datetime.utcnow() - timedelta(days=30)).isoformat("T") + "Z"
             all_results = []
 
             for keyword in keywords:
                 st.write(f"🔍 Searching for keyword: **{keyword}**")
 
-                # Search videos
                 search_params = {
                     "part": "snippet",
                     "q": keyword,
                     "type": "video",
                     "order": "viewCount",
                     "publishedAfter": start_date,
-                    "maxResults": 16,  # Fetch more results for grid
+                    "maxResults": 12,  
                     "key": API_KEY,
                 }
                 response = requests.get(YOUTUBE_SEARCH_URL, params=search_params)
@@ -302,11 +287,9 @@ if st.button("Fetch Data"):
                 video_ids = [video["id"]["videoId"] for video in data["items"]]
                 channel_ids = [video["snippet"]["channelId"] for video in data["items"]]
 
-                # Get video statistics
                 stats_params = {"part": "statistics", "id": ",".join(video_ids), "key": API_KEY}
                 stats_response = requests.get(YOUTUBE_VIDEO_URL, params=stats_params).json()
 
-                # Get channel statistics
                 channel_params = {"part": "statistics", "id": ",".join(channel_ids), "key": API_KEY}
                 channel_response = requests.get(YOUTUBE_CHANNEL_URL, params=channel_params).json()
 
@@ -317,7 +300,6 @@ if st.button("Fetch Data"):
                 stats = stats_response["items"]
                 channels = {ch["id"]: ch["statistics"] for ch in channel_response["items"]}
 
-                # Collect results
                 for video, stat in zip(data["items"], stats):
                     channel_id = video["snippet"]["channelId"]
                     subs = int(channels.get(channel_id, {}).get("subscriberCount", 0))
@@ -327,7 +309,6 @@ if st.button("Fetch Data"):
 
                         all_results.append({
                             "Title": video["snippet"]["title"],
-                            "Description": video["snippet"]["description"][:100],  # Short description
                             "Video ID": video["id"]["videoId"],
                             "URL": f"https://www.youtube.com/watch?v={video['id']['videoId']}",
                             "Views": format_number(views),
@@ -335,14 +316,15 @@ if st.button("Fetch Data"):
                             "Thumbnail": video["snippet"]["thumbnails"]["medium"]["url"]
                         })
 
-            # Display results in a grid (4 per row)
             if all_results:
                 st.success(f"✅ Found {len(all_results)} trending videos!")
-                cols = st.columns(4)  # Create 4 columns per row
-                
+
+                # Show videos in a 3-column grid (like YouTube)
+                cols = st.columns(3)  
+
                 for index, result in enumerate(all_results):
-                    with cols[index % 4]:  # Arrange videos in 4-column grid
-                        st.image(result["Thumbnail"], width=300)
+                    with cols[index % 3]:  
+                        st.image(result["Thumbnail"], use_column_width=True)
                         st.markdown(f"**[{result['Title']}]({result['URL']})**", unsafe_allow_html=True)
                         st.markdown(f"👁 **Views:** {result['Views']} &nbsp; 📢 **Subscribers:** {result['Subscribers']}")
                         st.write("---")
@@ -354,6 +336,5 @@ if st.button("Fetch Data"):
             st.error("❌ Invalid input for max subscribers. Please enter a number.")
         except Exception as e:
             st.error(f"❌ Error: {e}")
-
 
 
