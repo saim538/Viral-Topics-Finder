@@ -256,7 +256,7 @@ if st.button("Fetch Data"):
 
             # Iterate over the list of keywords
             for keyword in keywords:
-                st.write(f"Searching for keyword: {keyword}")
+                st.write(f"🔍 Searching for keyword: **{keyword}**")
 
                 # Define search parameters
                 search_params = {
@@ -274,7 +274,7 @@ if st.button("Fetch Data"):
                 data = response.json()
 
                 if "items" not in data or not data["items"]:
-                    st.warning(f"No videos found for keyword: {keyword}")
+                    st.warning(f"⚠️ No videos found for keyword: {keyword}")
                     continue
 
                 videos = data["items"]
@@ -282,7 +282,7 @@ if st.button("Fetch Data"):
                 channel_ids = [video["snippet"]["channelId"] for video in videos if "snippet" in video and "channelId" in video["snippet"]]
 
                 if not video_ids or not channel_ids:
-                    st.warning(f"Skipping keyword: {keyword} due to missing video/channel data.")
+                    st.warning(f"⚠️ Skipping keyword: {keyword} due to missing video/channel data.")
                     continue
 
                 # Fetch video statistics
@@ -291,7 +291,7 @@ if st.button("Fetch Data"):
                 stats_data = stats_response.json()
 
                 if "items" not in stats_data or not stats_data["items"]:
-                    st.warning(f"Failed to fetch video statistics for keyword: {keyword}")
+                    st.warning(f"⚠️ Failed to fetch video statistics for keyword: {keyword}")
                     continue
 
                 # Fetch channel statistics
@@ -300,7 +300,7 @@ if st.button("Fetch Data"):
                 channel_data = channel_response.json()
 
                 if "items" not in channel_data or not channel_data["items"]:
-                    st.warning(f"Failed to fetch channel statistics for keyword: {keyword}")
+                    st.warning(f"⚠️ Failed to fetch channel statistics for keyword: {keyword}")
                     continue
 
                 stats = stats_data["items"]
@@ -310,7 +310,8 @@ if st.button("Fetch Data"):
                 for video, stat, channel in zip(videos, stats, channels):
                     title = video["snippet"].get("title", "N/A")
                     description = video["snippet"].get("description", "")[:200]
-                    video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+                    video_id = video["id"]["videoId"]
+                    video_url = f"https://www.youtube.com/watch?v={video_id}"
                     views = int(stat["statistics"].get("viewCount", 0))
                     subs = int(channel["statistics"].get("subscriberCount", 0))
 
@@ -318,6 +319,7 @@ if st.button("Fetch Data"):
                         all_results.append({
                             "Title": title,
                             "Description": description,
+                            "Video ID": video_id,
                             "URL": video_url,
                             "Views": views,
                             "Subscribers": subs
@@ -325,20 +327,23 @@ if st.button("Fetch Data"):
 
             # Display results
             if all_results:
-                st.success(f"Found {len(all_results)} results across all keywords!")
+                st.success(f"✅ Found {len(all_results)} results across all keywords!")
+
                 for result in all_results:
+                    st.subheader(f"🎬 {result['Title']}")
+                    st.video(f"https://www.youtube.com/watch?v={result['Video ID']}")
                     st.markdown(
-                        f"**Title:** {result['Title']}  \n"
-                        f"**Description:** {result['Description']}  \n"
-                        f"**URL:** [Watch Video]({result['URL']})  \n"
-                        f"**Views:** {result['Views']}  \n"
-                        f"**Subscribers:** {result['Subscribers']}"
+                        f"**📌 Description:** {result['Description']}  \n"
+                        f"**👁 Views:** {result['Views']}  \n"
+                        f"**📢 Subscribers:** {result['Subscribers']}  \n"
+                        f"🔗 [Watch on YouTube]({result['URL']})"
                     )
                     st.write("---")
+
             else:
-                st.warning(f"No results found for channels with fewer than {subscriber_limit} subscribers.")
+                st.warning(f"⚠️ No results found for channels with fewer than {subscriber_limit} subscribers.")
 
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"❌ An error occurred: {e}")
 
 
