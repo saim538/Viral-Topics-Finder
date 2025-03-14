@@ -35,7 +35,7 @@ keywords = [
   "Best Billing Software for SaaS", "B2B SaaS Billing", "SaaS Billing System", "SaaS Invoicing", 
   "B2B SaaS Payments", "SaaS Billing Software", "SaaS Billing Models", "SaaS Billing Platforms", 
   "SaaS Subscription Billing", "Best SaaS Billing Software", "SaaS Pricing Strategy", 
-  "Software as a Service Pricing Models", "SaaS
+  "Software as a Service Pricing Models", "SaaS"
 
 ]
 
