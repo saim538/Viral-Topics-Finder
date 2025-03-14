@@ -236,7 +236,7 @@ YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
 # Streamlit UI
 st.set_page_config(layout="wide")  # Set layout to wide for responsiveness
-st.title("🔥 YouTube Trending Video Finder")
+st.title("YouTube Trending Video Finder")
 
 # Date Range Selection
 date_ranges = {
@@ -252,8 +252,8 @@ date_ranges = {
 selected_range = st.selectbox("Select Time Range:", list(date_ranges.keys()))
 
 # User Inputs
-keywords_input = st.text_area("Enter Keywords (comma-separated):", "trending, viral")
-subscriber_limit = st.number_input("Filter by Max Subscribers (e.g., 1000000 for 1M subs)", min_value=1, value=5000000)
+keywords_input = st.text_area("Enter Keywords (comma-separated):", "")  # No default keywords
+max_subscribers = st.text_input("Enter Max Subscribers:", "1000000")  # Default 1M, user can enter custom value
 
 # Convert keywords into a list
 keywords = [k.strip() for k in keywords_input.split(",") if k.strip()]
@@ -273,6 +273,8 @@ if st.button("Fetch Data"):
         st.warning("⚠️ Please enter at least one keyword.")
     else:
         try:
+            max_subs = int(max_subscribers)  # Convert input to integer
+
             # Calculate date range
             start_date = (datetime.utcnow() - timedelta(days=date_ranges[selected_range])).isoformat("T") + "Z"
             all_results = []
@@ -320,7 +322,7 @@ if st.button("Fetch Data"):
                     channel_id = video["snippet"]["channelId"]
                     subs = int(channels.get(channel_id, {}).get("subscriberCount", 0))
 
-                    if subs < subscriber_limit:
+                    if subs < max_subs:
                         views = int(stat["statistics"].get("viewCount", 0))
 
                         all_results.append({
@@ -346,8 +348,10 @@ if st.button("Fetch Data"):
                         st.write("---")
 
             else:
-                st.warning(f"⚠️ No results found for channels with fewer than {subscriber_limit} subscribers.")
+                st.warning(f"⚠️ No results found for channels with fewer than {max_subs} subscribers.")
 
+        except ValueError:
+            st.error("❌ Invalid input for max subscribers. Please enter a number.")
         except Exception as e:
             st.error(f"❌ Error: {e}")
 
