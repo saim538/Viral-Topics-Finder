@@ -287,6 +287,62 @@ if st.button("Fetch Data"):
                     st.warning(f"⚠️ No videos found for: {keyword}")
                     continue
 
-                video_ids = [video["id"]["videoId"] for video in data["items"]
+                video_ids = [video["id"]["videoId"] for video in data["items"]]
+                channel_ids = [video["snippet"]["channelId"] for video in data["items"]]
+
+                # Get video statistics
+                stats_params = {"part": "statistics", "id": ",".join(video_ids), "key": API_KEY}
+                stats_response = requests.get(YOUTUBE_VIDEO_URL, params=stats_params).json()
+
+                # Get channel statistics
+                channel_params = {"part": "statistics", "id": ",".join(channel_ids), "key": API_KEY}
+                channel_response = requests.get(YOUTUBE_CHANNEL_URL, params=channel_params).json()
+
+                if "items" not in stats_response or "items" not in channel_response:
+                    st.warning(f"⚠️ Failed to fetch stats for: {keyword}")
+                    continue
+
+                stats = stats_response["items"]
+                channels = {ch["id"]: ch["statistics"] for ch in channel_response["items"]}
+
+                # Collect results
+                for video, stat in zip(data["items"], stats):
+                    channel_id = video["snippet"]["channelId"]
+                    subs = int(channels.get(channel_id, {}).get("subscriberCount", 0))
+
+                    if subs < subscriber_limit:
+                        views = int(stat["statistics"].get("viewCount", 0))
+                        formatted_views = f"{views:,}".replace(",", " ")  # Format views
+                        formatted_subs = f"{subs:,}".replace(",", " ")  # Format subscribers
+
+                        all_results.append({
+                            "Title": video["snippet"]["title"],
+                            "Description": video["snippet"]["description"][:200],
+                            "Video ID": video["id"]["videoId"],
+                            "URL": f"https://www.youtube.com/watch?v={video['id']['videoId']}",
+                            "Views": formatted_views,
+                            "Subscribers": formatted_subs
+                        })
+
+            # Display results
+            if all_results:
+                st.success(f"✅ Found {len(all_results)} trending videos!")
+
+                for result in all_results:
+                    st.subheader(f"🎬 {result['Title']}")
+                    st.video(result["URL"])
+                    st.markdown(
+                        f"**📌 Description:** {result['Description']}  \n"
+                        f"**👁 Views:** {result['Views']}  \n"
+                        f"**📢 Subscribers:** {result['Subscribers']}  \n"
+                        f"🔗 [Watch on YouTube]({result['URL']})"
+                    )
+                    st.write("---")
+
+            else:
+                st.warning(f"⚠️ No results found for channels with fewer than {subscriber_limit} subscribers.")
+
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
 
 
