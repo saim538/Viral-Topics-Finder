@@ -227,7 +227,7 @@ import requests
 from datetime import datetime, timedelta
 
 # YouTube API Key
-API_KEY = "AIzaSyDmAp27l_1iZ2YVYZPxmvpnc5p_AcBN8rc"
+API_KEY = "YOUR_YOUTUBE_API_KEY"
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
@@ -236,7 +236,6 @@ YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 st.title("YouTube Viral Topics Tool")
 
 # Input Fields
-
 duration_options = {
     "Last 7 Days": 7,
     "Last 28 Days": 28,
@@ -288,12 +287,13 @@ if st.button("Fetch Data"):
             
             videos = data["items"]
             video_ids = [video["id"]["videoId"] for video in videos if "id" in video and "videoId" in video["id"]]
-            channel_ids = [video["snippet"]["channelId"] for video in videos if "snippet" in video and "channelId" in video["snippet"]]
+            channel_ids = list(set(video["snippet"]["channelId"] for video in videos if "snippet" in video and "channelId" in video["snippet"]))
             
             if not video_ids or not channel_ids:
                 st.warning(f"Skipping keyword: {keyword} due to missing video/channel data.")
                 continue
             
+            # Fetch Video Stats
             stats_params = {"part": "statistics", "id": ",".join(video_ids), "key": API_KEY}
             stats_response = requests.get(YOUTUBE_VIDEO_URL, params=stats_params)
             stats_data = stats_response.json()
@@ -301,7 +301,8 @@ if st.button("Fetch Data"):
             if "items" not in stats_data or not stats_data["items"]:
                 st.warning(f"Failed to fetch video statistics for keyword: {keyword}")
                 continue
-            
+
+            # Fetch Channel Stats
             channel_params = {"part": "statistics", "id": ",".join(channel_ids), "key": API_KEY}
             channel_response = requests.get(YOUTUBE_CHANNEL_URL, params=channel_params)
             channel_data = channel_response.json()
@@ -310,16 +311,19 @@ if st.button("Fetch Data"):
                 st.warning(f"Failed to fetch channel statistics for keyword: {keyword}")
                 continue
             
-            stats = stats_data["items"]
-            channels = channel_data["items"]
-            
-            for video, stat, channel in zip(videos, stats, channels):
+            # Map Channel ID to Subscriber Count
+            channel_subs_map = {ch["id"]: int(ch["statistics"].get("subscriberCount", 0)) for ch in channel_data["items"]}
+
+            # Process Results
+            for video, stat in zip(videos, stats_data["items"]):
                 title = video["snippet"].get("title", "N/A")
                 description = video["snippet"].get("description", "")[:200]
                 video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
                 views = int(stat["statistics"].get("viewCount", 0))
-                subs = int(channel["statistics"].get("subscriberCount", 0))
-                
+                channel_id = video["snippet"]["channelId"]
+                subs = channel_subs_map.get(channel_id, 0)
+
+                # Apply Filters
                 if min_views <= views <= max_views and min_subscribers <= subs <= max_subscribers:
                     all_results.append({
                         "Title": title,
@@ -328,7 +332,8 @@ if st.button("Fetch Data"):
                         "Views": views,
                         "Subscribers": subs
                     })
-        
+
+        # Display Results
         if all_results:
             st.success(f"Found {len(all_results)} results across all keywords!")
             for result in all_results:
@@ -344,3 +349,4 @@ if st.button("Fetch Data"):
             st.warning("No results found within the given parameters.")
     except Exception as e:
         st.error(f"An error occurred: {e}")
+
