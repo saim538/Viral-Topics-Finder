@@ -226,115 +226,97 @@ import streamlit as st
 import requests
 from datetime import datetime, timedelta
 
-# YouTube API Key (Your API key)
+# YouTube API Key
 API_KEY = "AIzaSyDmAp27l_1iZ2YVYZPxmvpnc5p_AcBN8rc"
 
-# API URLs
+# YouTube API URLs
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
-# Streamlit UI
-st.set_page_config(layout="wide")  # Set layout to wide for responsiveness
-st.title("🔥 YouTube Trending Video Finder")
-
-# User Inputs
-keywords_input = st.text_area("Enter Keywords (comma-separated):", "")  
-max_subscribers = st.text_input("Enter Max Subscribers:", "1000000")  
-
-# Convert keywords into a list
-keywords = [k.strip() for k in keywords_input.split(",") if k.strip()]
-
-# Function to format numbers (YouTube-style)
-def format_number(num):
-    num = int(num)
-    if num >= 1_000_000:
-        return f"{num / 1_000_000:.1f}M"
-    elif num >= 1_000:
-        return f"{num / 1_000:.1f}K"
-    return str(num)
-
-# Fetch Data Button
-if st.button("Fetch Data"):
-    if not keywords:
-        st.warning("⚠️ Please enter at least one keyword.")
+# Function to convert numbers to K/M/B format
+def format_count(number):
+    if number >= 1_000_000_000:
+        return f"{number / 1_000_000_000:.1f}B"
+    elif number >= 1_000_000:
+        return f"{number / 1_000_000:.1f}M"
+    elif number >= 1_000:
+        return f"{number / 1_000:.1f}K"
     else:
-        try:
-            max_subs = int(max_subscribers)  
+        return str(number)
 
-            start_date = (datetime.utcnow() - timedelta(days=30)).isoformat("T") + "Z"
-            all_results = []
+# Streamlit UI
+st.title("🔍 YouTube Video Search")
 
-            for keyword in keywords:
-                st.write(f"🔍 Searching for keyword: **{keyword}**")
+# Search Bar
+query = st.text_input("Enter Search Keyword:", "")
 
-                search_params = {
-                    "part": "snippet",
-                    "q": keyword,
-                    "type": "video",
-                    "order": "viewCount",
-                    "publishedAfter": start_date,
-                    "maxResults": 12,  
-                    "key": API_KEY,
-                }
-                response = requests.get(YOUTUBE_SEARCH_URL, params=search_params)
-                data = response.json()
+# Date Range Dropdown (Last 1 Day to Last 2 Years)
+date_options = {
+    "Last 1 Day": 1,
+    "Last 7 Days": 7,
+    "Last 30 Days": 30,
+    "Last 3 Months": 90,
+    "Last 6 Months": 180,
+    "Last 1 Year": 365,
+    "Last 2 Years": 730,
+}
+selected_range = st.selectbox("Filter by Date:", list(date_options.keys()))
 
-                if "items" not in data or not data["items"]:
-                    st.warning(f"⚠️ No videos found for: {keyword}")
-                    continue
+# Max Subscribers Input
+max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, step=1000, value=0)
 
-                video_ids = [video["id"]["videoId"] for video in data["items"]]
-                channel_ids = [video["snippet"]["channelId"] for video in data["items"]]
+# Calculate Date Range
+published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
 
-                stats_params = {"part": "statistics", "id": ",".join(video_ids), "key": API_KEY}
-                stats_response = requests.get(YOUTUBE_VIDEO_URL, params=stats_params).json()
+# Search YouTube API
+if st.button("Search"):
+    params = {
+        "part": "snippet",
+        "q": query,
+        "maxResults": 12,
+        "type": "video",
+        "order": "viewCount",
+        "publishedAfter": published_after,
+        "key": API_KEY,
+    }
+    response = requests.get(YOUTUBE_SEARCH_URL, params=params)
+    data = response.json()
 
-                channel_params = {"part": "statistics", "id": ",".join(channel_ids), "key": API_KEY}
-                channel_response = requests.get(YOUTUBE_CHANNEL_URL, params=channel_params).json()
+    if "items" in data:
+        video_ids = [item["id"]["videoId"] for item in data["items"]]
+        video_details_url = f"{YOUTUBE_VIDEO_URL}?part=statistics,snippet&id={','.join(video_ids)}&key={API_KEY}"
+        video_response = requests.get(video_details_url).json()
 
-                if "items" not in stats_response or "items" not in channel_response:
-                    st.warning(f"⚠️ Failed to fetch stats for: {keyword}")
-                    continue
+        # Display Results in Grid (4 Videos Per Row)
+        col1, col2, col3, col4 = st.columns(4)
+        cols = [col1, col2, col3, col4]
 
-                stats = stats_response["items"]
-                channels = {ch["id"]: ch["statistics"] for ch in channel_response["items"]}
+        for idx, video in enumerate(video_response.get("items", [])):
+            vid = video["id"]
+            snippet = video["snippet"]
+            stats = video["statistics"]
+            title = snippet["title"]
+            thumbnail = snippet["thumbnails"]["medium"]["url"]
+            views = format_count(int(stats.get("viewCount", 0)))
 
-                for video, stat in zip(data["items"], stats):
-                    channel_id = video["snippet"]["channelId"]
-                    subs = int(channels.get(channel_id, {}).get("subscriberCount", 0))
+            # Get Channel Details
+            channel_id = snippet["channelId"]
+            channel_url = f"{YOUTUBE_CHANNEL_URL}?part=statistics&id={channel_id}&key={API_KEY}"
+            channel_response = requests.get(channel_url).json()
+            subscribers = format_count(int(channel_response["items"][0]["statistics"]["subscriberCount"]))
 
-                    if subs < max_subs:
-                        views = int(stat["statistics"].get("viewCount", 0))
+            # Filter by Max Subscribers
+            if max_subscribers > 0 and int(channel_response["items"][0]["statistics"]["subscriberCount"]) > max_subscribers:
+                continue  # Skip if channel has more subscribers than the filter
 
-                        all_results.append({
-                            "Title": video["snippet"]["title"],
-                            "Video ID": video["id"]["videoId"],
-                            "URL": f"https://www.youtube.com/watch?v={video['id']['videoId']}",
-                            "Views": format_number(views),
-                            "Subscribers": format_number(subs),
-                            "Thumbnail": video["snippet"]["thumbnails"]["medium"]["url"]
-                        })
+            # Display Video
+            with cols[idx % 4]:
+                st.image(thumbnail, use_column_width=True)
+                st.write(f"**[{title}](https://www.youtube.com/watch?v={vid})**")
+                st.write(f"👁️ {views} views | 📢 {subscribers} subscribers")
 
-            if all_results:
-                st.success(f"✅ Found {len(all_results)} trending videos!")
-
-                # Show videos in a 3-column grid (like YouTube)
-                cols = st.columns(3)  
-
-                for index, result in enumerate(all_results):
-                    with cols[index % 3]:  
-                        st.image(result["Thumbnail"], use_column_width=True)
-                        st.markdown(f"**[{result['Title']}]({result['URL']})**", unsafe_allow_html=True)
-                        st.markdown(f"👁 **Views:** {result['Views']} &nbsp; 📢 **Subscribers:** {result['Subscribers']}")
-                        st.write("---")
-
-            else:
-                st.warning(f"⚠️ No results found for channels with fewer than {max_subs} subscribers.")
-
-        except ValueError:
-            st.error("❌ Invalid input for max subscribers. Please enter a number.")
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
+    else:
+        st.write("❌ No results found.")
 
 
