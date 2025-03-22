@@ -223,6 +223,7 @@ YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
 # Function to format numbers in K/M/B
 def format_count(number):
+    number = int(number)
     if number >= 1_000_000_000:
         return f"{number / 1_000_000_000:.1f}B"
     elif number >= 1_000_000:
@@ -239,7 +240,7 @@ st.title("🔍 YouTube Video Search")
 # Search Bar
 query = st.text_input("Enter Search Keyword:", "")
 
-# Date Range Dropdown (Last 1 Day to Last 2 Years)
+# Date Range Dropdown
 date_options = {
     "Last 1 Day": 1,
     "Last 7 Days": 7,
@@ -250,42 +251,27 @@ date_options = {
     "Last 2 Years": 730,
 }
 selected_range = st.selectbox("Filter by Date:", list(date_options.keys()))
-
-# Max Subscribers Input
-max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, step=1000, value=0)
+published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
 
 # Video Length Filter
 video_length_filter = st.radio("Filter by Video Length:", ("All", "Shorts (<60s)", "Long (>=60s)"))
 
-# Calculate Date Range
-published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
-
-# Session state for pagination
-if "nextPageToken" not in st.session_state:
-    st.session_state.nextPageToken = None
-if "videos" not in st.session_state:
-    st.session_state.videos = []
-if "video_count" not in st.session_state:
-    st.session_state.video_count = 0
-
 # Function to fetch videos
 def fetch_videos(page_token=None):
     if not query.strip():
-        return {"items": []}  # Prevent empty query error
+        return {"items": []}
     
     params = {
         "part": "snippet",
         "q": query,
-        "maxResults": 50,
+        "maxResults": 10,
         "type": "video",
         "order": "viewCount",
         "publishedAfter": published_after,
         "key": API_KEY,
-        "videoDuration": "any",
     }
     if page_token:
         params["pageToken"] = page_token
-    
     if video_length_filter == "Shorts (<60s)":
         params["videoDuration"] = "short"
     elif video_length_filter == "Long (>=60s)":
@@ -294,75 +280,55 @@ def fetch_videos(page_token=None):
     response = requests.get(YOUTUBE_SEARCH_URL, params=params).json()
     return response
 
+# Function to fetch video statistics
+def get_video_stats(video_ids):
+    params = {
+        "part": "statistics",
+        "id": ",".join(video_ids),
+        "key": API_KEY,
+    }
+    response = requests.get(YOUTUBE_VIDEO_URL, params=params).json()
+    return {item["id"]: item["statistics"] for item in response.get("items", [])}
+
+# Function to fetch channel subscribers
+def get_channel_subscribers(channel_ids):
+    params = {
+        "part": "statistics",
+        "id": ",".join(channel_ids),
+        "key": API_KEY,
+    }
+    response = requests.get(YOUTUBE_CHANNEL_URL, params=params).json()
+    return {item["id"]: format_count(item["statistics"]["subscriberCount"]) for item in response.get("items", [])}
+
 # Search YouTube API
 if st.button("Search"):
-    st.session_state.videos = []  # Reset results
-    st.session_state.nextPageToken = None  # Reset pagination
-    st.session_state.video_count = 0  # Reset video count
     response = fetch_videos()
-    st.session_state.videos.extend(response.get("items", []))
-    st.session_state.nextPageToken = response.get("nextPageToken", None)
-    st.session_state.video_count += len(response.get("items", []))
+    videos = response.get("items", [])
     
-    if not st.session_state.videos:
+    if not videos:
         st.write("❌ No results found. Try adjusting filters or searching with a different keyword.")
-
-# Display results
-if st.session_state.videos:
-    st.markdown("""
-    <style>
-    .video-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        justify-content: flex-start;
-        width: 100%;
-    }
-    .video-card {
-        width: 23%;
-        min-height: 300px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 10px;
-        text-align: center;
-        background: #f9f9f9;
-    }
-    .video-card img {
-        width: 100%;
-        border-radius: 10px;
-    }
-    .video-title {
-        color: black;
-        margin: 10px 0;
-        font-weight: bold;
-        text-decoration: none;
-    }
-    </style>
-    <div class='video-container'>
-    """, unsafe_allow_html=True)
-    
-    for item in st.session_state.videos:
-        vid = item["id"]["videoId"]
-        snippet = item["snippet"]
-        title = snippet["title"]
-        thumbnail = snippet["thumbnails"]["medium"]["url"]
+    else:
+        video_ids = [item["id"]["videoId"] for item in videos]
+        channel_ids = list(set(item["snippet"]["channelId"] for item in videos))
+        video_stats = get_video_stats(video_ids)
+        channel_subs = get_channel_subscribers(channel_ids)
         
-        st.markdown(f"""
-        <div class='video-card'>
-            <a href='https://www.youtube.com/watch?v={vid}' target='_blank'><img src='{thumbnail}'></a>
-            <p class='video-title'>{title}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Load More Button
-    if st.session_state.nextPageToken and st.session_state.video_count >= 200:
-        if st.button("Load More"):
-            response = fetch_videos(st.session_state.nextPageToken)
-            st.session_state.videos.extend(response.get("items", []))
-            st.session_state.nextPageToken = response.get("nextPageToken", None)
-            st.session_state.video_count += len(response.get("items", []))
+        for item in videos:
+            vid = item["id"]["videoId"]
+            snippet = item["snippet"]
+            title = snippet["title"]
+            thumbnail = snippet["thumbnails"]["medium"]["url"]
+            views = format_count(video_stats.get(vid, {}).get("viewCount", "N/A"))
+            channel_id = snippet["channelId"]
+            subscribers = channel_subs.get(channel_id, "N/A")
             
-            if not response.get("items", []):
-                st.write("❌ No more results found.")
+            st.markdown(f"""
+            <div style='border:1px solid #ddd; padding:10px; border-radius:10px; margin-bottom:10px; background:#f9f9f9;'>
+                <a href='https://www.youtube.com/watch?v={vid}' target='_blank'>
+                    <img src='{thumbnail}' style='width:100%; border-radius:10px;'>
+                </a>
+                <p style='font-weight:bold; margin:10px 0;'>{title}</p>
+                <p>👀 {views} views | 🎯 {subscribers} subscribers</p>
+            </div>
+            """, unsafe_allow_html=True)
+
