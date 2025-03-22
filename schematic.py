@@ -259,10 +259,14 @@ max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, st
 # Video Length Filter
 video_length_filter = st.radio("Filter by Video Length:", ("All", "Shorts (<60s)", "Long (>=60s)"))
 
+# Pagination State
+if "next_page_token" not in st.session_state:
+    st.session_state.next_page_token = None
+
 # Function to fetch videos
 def fetch_videos(page_token=None):
     if not query.strip():
-        return {"items": []}
+        return {"items": [], "nextPageToken": None}
     
     params = {
         "part": "snippet",
@@ -304,9 +308,10 @@ def get_channel_subscribers(channel_ids):
     return {item["id"]: format_count(item["statistics"]["subscriberCount"]) for item in response.get("items", [])}
 
 # Search YouTube API
-if st.button("Search"):
-    response = fetch_videos()
+if st.button("Search") or st.session_state.next_page_token:
+    response = fetch_videos(st.session_state.next_page_token)
     videos = response.get("items", [])
+    st.session_state.next_page_token = response.get("nextPageToken")
     
     if not videos:
         st.write("❌ No results found. Try adjusting filters or searching with a different keyword.")
@@ -316,35 +321,8 @@ if st.button("Search"):
         video_stats = get_video_stats(video_ids)
         channel_subs = get_channel_subscribers(channel_ids)
         
-        st.markdown("""
-        <style>
-        .video-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: flex-start;
-        }
-        .video-card {
-            width: 23%;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px;
-            background: #f9f9f9;
-            text-align: center;
-        }
-        .video-card img {
-            width: 100%;
-            border-radius: 10px;
-        }
-        .video-title {
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        </style>
-        <div class='video-container'>
-        """, unsafe_allow_html=True)
-        
-        for item in videos:
+        cols = st.columns(4)
+        for idx, item in enumerate(videos):
             vid = item["id"]["videoId"]
             snippet = item["snippet"]
             title = snippet["title"]
@@ -353,14 +331,18 @@ if st.button("Search"):
             channel_id = snippet["channelId"]
             subscribers = channel_subs.get(channel_id, "N/A")
             
-            st.markdown(f"""
-            <div class='video-card'>
-                <a href='https://www.youtube.com/watch?v={vid}' target='_blank'>
-                    <img src='{thumbnail}'>
-                </a>
-                <p class='video-title'>{title}</p>
-                <p>👀 {views} views | 🎯 {subscribers} subscribers</p>
-            </div>
-            """, unsafe_allow_html=True)
+            with cols[idx % 4]:
+                st.markdown(f"""
+                <div style='text-align: center;'>
+                    <a href='https://www.youtube.com/watch?v={vid}' target='_blank'>
+                        <img src='{thumbnail}' style='width:100%; border-radius:10px;'>
+                    </a>
+                    <p style='font-weight:bold; margin:10px 0;'>{title}</p>
+                    <p>👀 {views} views | 🎯 {subscribers} subscribers</p>
+                </div>
+                """, unsafe_allow_html=True)
         
-        st.markdown("</div>", unsafe_allow_html=True)
+        if st.session_state.next_page_token:
+            if st.button("Load More"):
+                st.experimental_rerun()
+
