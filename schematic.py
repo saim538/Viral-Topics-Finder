@@ -253,6 +253,9 @@ date_options = {
 selected_range = st.selectbox("Filter by Date:", list(date_options.keys()))
 published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
 
+# Max Subscribers Input
+max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, step=1000, value=0)
+
 # Video Length Filter
 video_length_filter = st.radio("Filter by Video Length:", ("All", "Shorts (<60s)", "Long (>=60s)"))
 
@@ -264,7 +267,7 @@ def fetch_videos(page_token=None):
     params = {
         "part": "snippet",
         "q": query,
-        "maxResults": 10,
+        "maxResults": 50,
         "type": "video",
         "order": "viewCount",
         "publishedAfter": published_after,
@@ -313,6 +316,34 @@ if st.button("Search"):
         video_stats = get_video_stats(video_ids)
         channel_subs = get_channel_subscribers(channel_ids)
         
+        st.markdown("""
+        <style>
+        .video-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: flex-start;
+        }
+        .video-card {
+            width: 23%;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            text-align: center;
+        }
+        .video-card img {
+            width: 100%;
+            border-radius: 10px;
+        }
+        .video-title {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        </style>
+        <div class='video-container'>
+        """, unsafe_allow_html=True)
+        
         for item in videos:
             vid = item["id"]["videoId"]
             snippet = item["snippet"]
@@ -323,12 +354,13 @@ if st.button("Search"):
             subscribers = channel_subs.get(channel_id, "N/A")
             
             st.markdown(f"""
-            <div style='border:1px solid #ddd; padding:10px; border-radius:10px; margin-bottom:10px; background:#f9f9f9;'>
+            <div class='video-card'>
                 <a href='https://www.youtube.com/watch?v={vid}' target='_blank'>
-                    <img src='{thumbnail}' style='width:100%; border-radius:10px;'>
+                    <img src='{thumbnail}'>
                 </a>
-                <p style='font-weight:bold; margin:10px 0;'>{title}</p>
+                <p class='video-title'>{title}</p>
                 <p>👀 {views} views | 🎯 {subscribers} subscribers</p>
             </div>
             """, unsafe_allow_html=True)
-
+        
+        st.markdown("</div>", unsafe_allow_html=True)
