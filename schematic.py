@@ -253,21 +253,20 @@ date_options = {
 selected_range = st.selectbox("Filter by Date:", list(date_options.keys()))
 published_after = (datetime.utcnow() - timedelta(days=date_options[selected_range])).isoformat() + "Z"
 
-# Max Subscribers Input
-max_subscribers = st.number_input("Max Subscribers (Optional):", min_value=0, step=1000, value=0)
-
 # Video Length Filter
 video_length_filter = st.radio("Filter by Video Length:", ("All", "Shorts (<60s)", "Long (>=60s)"))
 
-# Pagination State
+# Initialize session state for pagination and results
 if "next_page_token" not in st.session_state:
     st.session_state.next_page_token = None
+if "all_videos" not in st.session_state:
+    st.session_state.all_videos = []
 
 # Function to fetch videos
 def fetch_videos(page_token=None):
     if not query.strip():
         return {"items": [], "nextPageToken": None}
-    
+
     params = {
         "part": "snippet",
         "q": query,
@@ -283,7 +282,7 @@ def fetch_videos(page_token=None):
         params["videoDuration"] = "short"
     elif video_length_filter == "Long (>=60s)":
         params["videoDuration"] = "long"
-    
+
     response = requests.get(YOUTUBE_SEARCH_URL, params=params).json()
     return response
 
@@ -308,41 +307,53 @@ def get_channel_subscribers(channel_ids):
     return {item["id"]: format_count(item["statistics"]["subscriberCount"]) for item in response.get("items", [])}
 
 # Search YouTube API
-if st.button("Search") or st.session_state.next_page_token:
-    response = fetch_videos(st.session_state.next_page_token)
+if st.button("Search"):
+    st.session_state.all_videos = []  # Reset previous results
+    st.session_state.next_page_token = None
+
+    response = fetch_videos()
     videos = response.get("items", [])
     st.session_state.next_page_token = response.get("nextPageToken")
-    
-    if not videos:
-        st.write("❌ No results found. Try adjusting filters or searching with a different keyword.")
-    else:
-        video_ids = [item["id"]["videoId"] for item in videos]
-        channel_ids = list(set(item["snippet"]["channelId"] for item in videos))
-        video_stats = get_video_stats(video_ids)
-        channel_subs = get_channel_subscribers(channel_ids)
-        
-        cols = st.columns(4)
-        for idx, item in enumerate(videos):
-            vid = item["id"]["videoId"]
-            snippet = item["snippet"]
-            title = snippet["title"]
-            thumbnail = snippet["thumbnails"]["medium"]["url"]
-            views = format_count(video_stats.get(vid, {}).get("viewCount", "N/A"))
-            channel_id = snippet["channelId"]
-            subscribers = channel_subs.get(channel_id, "N/A")
-            
-            with cols[idx % 4]:
-                st.markdown(f"""
-                <div style='text-align: center;'>
-                    <a href='https://www.youtube.com/watch?v={vid}' target='_blank'>
-                        <img src='{thumbnail}' style='width:100%; border-radius:10px;'>
-                    </a>
-                    <p style='font-weight:bold; margin:10px 0;'>{title}</p>
-                    <p>👀 {views} views | 🎯 {subscribers} subscribers</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        if st.session_state.next_page_token:
-            if st.button("Load More"):
+
+    if videos:
+        st.session_state.all_videos.extend(videos)
+
+# Load More Button Handling
+if st.session_state.all_videos:
+    video_ids = [item["id"]["videoId"] for item in st.session_state.all_videos]
+    channel_ids = list(set(item["snippet"]["channelId"] for item in st.session_state.all_videos))
+    video_stats = get_video_stats(video_ids)
+    channel_subs = get_channel_subscribers(channel_ids)
+
+    cols = st.columns(4)
+    for idx, item in enumerate(st.session_state.all_videos):
+        vid = item["id"]["videoId"]
+        snippet = item["snippet"]
+        title = snippet["title"]
+        thumbnail = snippet["thumbnails"]["medium"]["url"]
+        views = format_count(video_stats.get(vid, {}).get("viewCount", "N/A"))
+        channel_id = snippet["channelId"]
+        subscribers = channel_subs.get(channel_id, "N/A")
+
+        with cols[idx % 4]:
+            st.markdown(f"""
+            <div style='text-align: center;'>
+                <a href='https://www.youtube.com/watch?v={vid}' target='_blank'>
+                    <img src='{thumbnail}' style='width:100%; border-radius:10px;'>
+                </a>
+                <p style='font-weight:bold; margin:10px 0;'>{title}</p>
+                <p>👀 {views} views | 🎯 {subscribers} subscribers</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Show Load More button after 200 results
+    if len(st.session_state.all_videos) >= 200 and st.session_state.next_page_token:
+        if st.button("Load More"):
+            response = fetch_videos(st.session_state.next_page_token)
+            new_videos = response.get("items", [])
+            st.session_state.next_page_token = response.get("nextPageToken")
+
+            if new_videos:
+                st.session_state.all_videos.extend(new_videos)
                 st.experimental_rerun()
 
